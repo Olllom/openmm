@@ -5293,6 +5293,12 @@ void OpenCLCalcCustomCentroidBondForceKernel::initialize(const System& system, c
         globalParamValues[i] = (float) force.getGlobalParameterDefaultValue(i);
     }
     map<string, string> variables;
+    variables["h00"] = "periodicBoxVecX.x";
+    variables["h10"] = "periodicBoxVecY.x";
+    variables["h11"] = "periodicBoxVecY.y";
+    variables["h20"] = "periodicBoxVecZ.x";
+    variables["h21"] = "periodicBoxVecZ.y";
+    variables["h22"] = "periodicBoxVecZ.z";
     for (int i = 0; i < groupsPerBond; i++) {
         string index = cl.intToString(i+1);
         variables["x"+index] = "pos"+index+".x";

@@ -46,6 +46,7 @@ class ReferenceCustomCentroidBondIxn : public ReferenceBondIxn {
       std::vector<std::vector<int> > bondGroups;
       CompiledExpressionSet expressionSet;
       Lepton::CompiledExpression energyExpression;
+      double *h00, *h10, *h11, *h20, *h21, *h22;
       std::vector<Lepton::CompiledExpression> energyParamDerivExpressions;
       std::vector<int> bondParamIndex;
       std::vector<PositionTermInfo> positionTerms;

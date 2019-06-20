@@ -29,6 +29,7 @@
 #include "SimTKOpenMMUtilities.h"
 #include "ReferenceForce.h"
 #include "ReferenceCustomCentroidBondIxn.h"
+#include "openmm/OpenMMException.h"
 
 using std::map;
 using std::pair;
@@ -47,6 +48,12 @@ ReferenceCustomCentroidBondIxn::ReferenceCustomCentroidBondIxn(int numGroupsPerB
     expressionSet.registerExpression(this->energyExpression);
     for (int i = 0; i < this->energyParamDerivExpressions.size(); i++)
         expressionSet.registerExpression(this->energyParamDerivExpressions[i]);
+    h00 = ReferenceForce::getVariablePointer(this->energyExpression, "h00");
+    h10 = ReferenceForce::getVariablePointer(this->energyExpression, "h10");
+    h11 = ReferenceForce::getVariablePointer(this->energyExpression, "h11");
+    h20 = ReferenceForce::getVariablePointer(this->energyExpression, "h20");
+    h21 = ReferenceForce::getVariablePointer(this->energyExpression, "h21");
+    h22 = ReferenceForce::getVariablePointer(this->energyExpression, "h22");
     for (int i = 0; i < numGroupsPerBond; i++) {
         stringstream xname, yname, zname;
         xname << 'x' << (i+1);
@@ -96,7 +103,18 @@ void ReferenceCustomCentroidBondIxn::setPeriodic(OpenMM::Vec3* vectors) {
 void ReferenceCustomCentroidBondIxn::calculatePairIxn(vector<Vec3>& atomCoordinates, vector<vector<double> >& bondParameters,
                                              const map<string, double>& globalParameters, vector<Vec3>& forces,
                                              double* totalEnergy, double* energyParamDerivs) {
-
+    if (!usePeriodic && h00) throw OpenMMException("ReferenceCustomCentroidBondIxn: h00 variable used but the system is not periodic");
+    if (!usePeriodic && h10) throw OpenMMException("ReferenceCustomCentroidBondIxn: h10 variable used but the system is not periodic");
+    if (!usePeriodic && h11) throw OpenMMException("ReferenceCustomCentroidBondIxn: h11 variable used but the system is not periodic");
+    if (!usePeriodic && h20) throw OpenMMException("ReferenceCustomCentroidBondIxn: h20 variable used but the system is not periodic");
+    if (!usePeriodic && h21) throw OpenMMException("ReferenceCustomCentroidBondIxn: h21 variable used but the system is not periodic");
+    if (!usePeriodic && h22) throw OpenMMException("ReferenceCustomCentroidBondIxn: h22 variable used but the system is not periodic");
+    ReferenceForce::setVariable(h00, boxVectors[0][0]);
+    ReferenceForce::setVariable(h10, boxVectors[1][0]);
+    ReferenceForce::setVariable(h11, boxVectors[1][1]);
+    ReferenceForce::setVariable(h20, boxVectors[2][0]);
+    ReferenceForce::setVariable(h21, boxVectors[2][1]);
+    ReferenceForce::setVariable(h22, boxVectors[2][2]);
     // First compute the center of each group.
 
     int numGroups = groupAtoms.size();

@@ -333,6 +333,69 @@ void testPeriodic() {
     ASSERT_EQUAL_VEC(Vec3(2*0.5*(5.0/12.0), 0, 0), state.getForces()[4], TOL);
 }
 
+void testBoxVecVariables() {
+    // Create a force that uses periodic boundary conditions and a box dependent force
+    
+    System system;
+    system.addParticle(1.0);
+    system.addParticle(2.0);
+    system.addParticle(3.0);
+    system.addParticle(4.0);
+    system.addParticle(5.0);
+    Vec3 box0(20,  0,  0);
+    Vec3 box1( 3, 30,  0);
+    Vec3 box2( 2,  4, 40);
+    system.setDefaultPeriodicBoxVectors(box0, box1, box2);
+    CustomCentroidBondForce* force = new CustomCentroidBondForce(2, "(h00+h10+h11+h20+h21+h22)*k*distance(g1,g2)^2");
+    force->addPerBondParameter("k");
+    vector<int> particles1;
+    particles1.push_back(0);
+    particles1.push_back(1);
+    vector<int> particles2;
+    particles2.push_back(2);
+    particles2.push_back(3);
+    particles2.push_back(4);
+    force->addGroup(particles1);
+    force->addGroup(particles2);
+    vector<int> groups;
+    groups.push_back(0);
+    groups.push_back(1);
+    vector<double> parameters;
+    parameters.push_back(1.0);
+    force->addBond(groups, parameters);
+    force->setUsesPeriodicBoundaryConditions(true);
+    system.addForce(force);
+
+    // The center of mass of group 0 is (1.5, 0, 0).
+
+    vector<Vec3> positions(5);
+    positions[0] = Vec3(2.5, 0, 0);
+    positions[1] = Vec3(1, 0, 0);
+
+    // The center of mass of group 1 is (-1, 0, 0).
+
+    positions[2] = Vec3(-6, 0, 0);
+    positions[3] = Vec3(-1, 0, 0);
+    positions[4] = Vec3(2, 0, 0);
+
+    // Check the forces and energy.
+
+    VerletIntegrator integrator(0.01);
+    Context context(system, integrator, platform);
+    context.setPositions(positions);
+    context.setPeriodicBoxVectors(box0*1, box1*1, box2*1);
+    State state = context.getState(State::Energy);
+    double energy1 = state.getPotentialEnergy();
+    context.setPeriodicBoxVectors(box0*2, box1*2, box2*2);
+    state = context.getState(State::Energy);
+    double energy2 = state.getPotentialEnergy();
+    context.setPeriodicBoxVectors(box0*4, box1*4, box2*4);
+    state = context.getState(State::Energy);
+    double energy4 = state.getPotentialEnergy();
+    ASSERT_EQUAL_TOL(energy1, 0.5*energy2, TOL);
+    ASSERT_EQUAL_TOL(energy1, 0.25*energy4, TOL);
+}
+
 void testEnergyParameterDerivatives() {
     System system;
     system.addParticle(1.0);
@@ -397,6 +460,7 @@ void runPlatformTests();
 int main(int argc, char* argv[]) {
     try {
         initializeTests(argc, argv);
+        testBoxVecVariables();
         testHarmonicBond();
         testComplexFunction();
         testCustomWeights();
