@@ -162,6 +162,13 @@ ParsedExpression CustomCentroidBondForceImpl::prepareExpression(const CustomCent
         variables.insert(y.str());
         variables.insert(z.str());
     }
+    // The lattice vectors
+    variables.insert("h00");
+    variables.insert("h10");
+    variables.insert("h11");
+    variables.insert("h20");
+    variables.insert("h21");
+    variables.insert("h22");
     for (int i = 0; i < force.getNumGlobalParameters(); i++)
         variables.insert(force.getGlobalParameterName(i));
     for (int i = 0; i < force.getNumPerBondParameters(); i++)
