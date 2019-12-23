@@ -69,6 +69,7 @@ ReferencePlatform::ReferencePlatform() {
     registerKernelFactory(IntegrateVelocityVerletStepKernel::Name(), factory);
     registerKernelFactory(NoseHooverChainKernel::Name(), factory);
     registerKernelFactory(IntegrateLangevinStepKernel::Name(), factory);
+    registerKernelFactory(IntegrateBAOABStepKernel::Name(), factory);
     registerKernelFactory(IntegrateBrownianStepKernel::Name(), factory);
     registerKernelFactory(IntegrateVariableLangevinStepKernel::Name(), factory);
     registerKernelFactory(IntegrateVariableVerletStepKernel::Name(), factory);

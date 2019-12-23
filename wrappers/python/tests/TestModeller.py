@@ -1,9 +1,13 @@
+from collections import defaultdict
 import unittest
+import math
+import sys
+
 from validateModeller import *
 from simtk.openmm.app import *
 from simtk.openmm import *
 from simtk.unit import *
-from collections import defaultdict
+
 if sys.version_info >= (3, 0):
     from io import StringIO
 else:
@@ -593,6 +597,51 @@ class TestModeller(unittest.TestCase):
 
         validate_equivalence(self, topology_start, topology_after)
 
+    def test_addHydrogensPdb3_keepPositions(self):
+        """ Test addHydrogens() does not change existing Hs positions """
+
+        # build the Modeller
+        topology_start = self.topology_start3
+        positions = self.positions3.value_in_unit(nanometers)
+        modeller = Modeller(topology_start, positions)
+
+        # Record original hydrogen positions
+        oriH = [atom.index for atom in modeller.topology.atoms() if atom.element == element.hydrogen]
+        oriH_pos = [positions[i] for i in oriH]
+
+        # Remove hydrogens from last residue
+        res_list = list(topology_start.residues())
+        toDelete = [atom for atom in res_list[-1].atoms() if atom.element == element.hydrogen]
+        modeller.delete(toDelete)
+
+        n_deleted = len(toDelete)
+
+        # Add hydrogen atoms back.
+        modeller.addHydrogens(self.forcefield)
+        topology_after = modeller.getTopology()
+
+        # Fetch 'new' positions
+        new_positions = modeller.positions.value_in_unit(nanometers)
+        newH = [atom.index for atom in topology_after.atoms() if atom.element == element.hydrogen]
+        newH_pos = [new_positions[i] for i in newH]
+
+        # Did we add all Hs back in correctly?
+        self.assertEqual(len(newH), len(oriH))
+
+        # Are the old ones at the same position?
+        # Negative control
+        oriH_fixed = oriH_pos[:-1*n_deleted]
+        newH_fixed = newH_pos[:-1*n_deleted]
+        xyz_diff = any([norm(o-n) > 1e-6 for o, n in zip(oriH_fixed, newH_fixed)])
+        self.assertEqual(xyz_diff, False)
+
+        # Were the new ones optimized?
+        # Positive control
+        oriH_added = oriH_pos[-1*n_deleted:]
+        newH_added = newH_pos[-1*n_deleted:]
+        xyz_diff = all([norm(o-n) > 1e-6 for o, n in zip(oriH_added, newH_added)])
+        self.assertEqual(xyz_diff, True)
+
     def test_addHydrogensASH(self):
         """ Test of addHydrogens() in which we force ASH to be a variant using the variants parameter. """
 
@@ -1079,7 +1128,7 @@ class TestModeller(unittest.TestCase):
 
     def test_addMembrane(self):
         """Test adding a membrane to a realistic system."""
-        
+
         mol = PDBxFile('systems/gpcr.cif')
         modeller = Modeller(mol.topology, mol.positions)
         ff = ForceField('amber14-all.xml', 'amber14/tip3p.xml')
@@ -1091,12 +1140,26 @@ class TestModeller(unittest.TestCase):
         resCount = defaultdict(int)
         for res in modeller.topology.residues():
             resCount[res.name] += 1
-        self.assertTrue(resCount['HOH'] > 1)
-        self.assertTrue(resCount['CL'] > 1)
-        self.assertTrue(resCount['NA'] > 1)
-        self.assertTrue(resCount['CL'] > resCount['NA'])  # overall negative
+
         self.assertEqual(16, resCount['ALA'])
         self.assertEqual(226, resCount['POP'])  # 2x128 - overlapping
+        self.assertTrue(resCount['HOH'] > 1)
+
+        deltaQ = resCount['CL'] - resCount['NA']
+        self.assertEqual(deltaQ, 10)  # protein net q: +10
+
+        # Check _addIons did the right thing.
+        expected_ion_fraction = 1.0*molar/(55.4*molar)
+
+        total_water = resCount['HOH']
+        total_water_ions = resCount['HOH'] + resCount['CL'] + resCount['NA']
+
+        # total_water_ions - protein charge
+        expected_sodium = math.floor((total_water_ions-10)*expected_ion_fraction+0.5)
+        expected_chlorine = expected_sodium + 10
+
+        self.assertEqual(resCount['CL'], expected_chlorine)
+        self.assertEqual(resCount['NA'], expected_sodium)
 
         # Check lipid numbering for repetitions
         lipidIdList = [(r.chain.id, r.id) for r in modeller.topology.residues()
