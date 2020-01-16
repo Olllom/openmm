@@ -7103,7 +7103,7 @@ void CudaIntegrateVelocityVerletStepKernel::execute(ContextImpl& context, const 
     double dt = integrator.getStepSize();
     cu.getIntegrationUtilities().setNextStepSize(dt);
 
-    if( !forcesAreValid ) context.calcForcesAndEnergy(true, false);
+    if( !forcesAreValid || cu.getAtomsWereReordered() ) context.calcForcesAndEnergy(true, false);
 
     const auto& atomList = integrator.getAllThermostatedIndividualParticles();
     const auto& pairList = integrator.getAllThermostatedPairs();
